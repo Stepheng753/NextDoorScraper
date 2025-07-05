@@ -1,14 +1,27 @@
 {
-  "name": "nextdoorscraper",
-  "version": "1.0.0",
-  "main": "nextDoorScraper.js",
-  "scripts": {},
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@playwright/test": "^1.53.2",
-    "@types/node": "^24.0.10"
-  }
+	"name": "nextdoorscraper",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "index.js",
+	"scripts": {
+		"start": "node nextDoorScraper.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Stepheng753/NextDoorScraper.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/Stepheng753/NextDoorScraper/issues"
+	},
+	"homepage": "https://github.com/Stepheng753/NextDoorScraper#readme",
+	"description": "",
+	"dependencies": {
+		"date-fns": "^4.1.0",
+		"dotenv": "^16.4.5",
+		"nodemailer": "^7.0.4",
+		"playwright": "^1.53.2"
+	}
 }

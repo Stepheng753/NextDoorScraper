@@ -1,62 +1,57 @@
 # NextDoorScraper
 
-This project demonstrates how to use [Playwright](https://playwright.dev/) for scraping posts from Nextdoor. It includes Playwright test configuration, example tests, and a sample script for extracting post data from the Nextdoor website.
+A Node.js script using Playwright to log in to Nextdoor, scroll and scrape posts, save them to a text file, and optionally email the results.
 
-## Prerequisites
+## Features
 
--   [Node.js](https://nodejs.org/) (v16+ recommended)
--   [npm](https://www.npmjs.com/)
+-   Automated login to Nextdoor
+-   Scrolls to load more posts
+-   Scrapes post data (name, text, location, time, link)
+-   Saves results to a timestamped `.txt` file
+-   Optionally emails the results as an attachment
 
 ## Setup
 
-1.  **Install dependencies:**
-
+1. **Clone the repository**
+2. **Install dependencies**
     ```sh
     npm install
     ```
-
-2.  **Install Playwright browsers:**
-
-    ```sh
-    npx playwright install
-    ```
-
-3.  **Running Playwright Tests:**
-
-    You can run the Playwright tests using the following command:
-
-    ```sh
-    npx playwright test
-    ```
-
-    Test results and reports will be generated in the `playwright-report/` directory
-
-4.  **Scraping Nextdoor Posts:**
-
-    The script `nextDoorScraper.js` contains a function to extract post data from a Nextdoor feed page. This script is intended to be run in the browser console on a Nextdoor page after logging in.
-
-    Usage
-
-        1. Log in to Nextdoor in your browser and navigate to the feed or posts page you want to scrape.
-        2. Open the browser's Developer Tools (usually F12 or right-click → Inspect).
-        3. Copy the contents of nextDoorScraper.js and paste it into the Console tab.
-        4. Run the function:
-
-    ```javascript
-    extractPostData();
-    ```
-
-        5. The script will log extracted post information (name, text, location, time, and profile link) to the console.
-
-    Example Output
+3. **Create a `.env` file** in the project root:
 
     ```
-    John Doe : Lost dog near the park
-    Greenwood : 2 hours ago
-    https://nextdoor.com/profile/...
+    EMAIL_USER=your_email@gmail.com
+    EMAIL_PASS=your_app_password
+    NEXTDOOR_PASS=your_nextdoor_password
+    TXT_FILE_PATH=nextdoor_posts.txt
     ```
+
+    > Use an [App Password](https://support.google.com/accounts/answer/185833?hl=en) for Gmail.
+
+4. **Configure selectors and URLs** in `nextDoorConfig.js` if needed.
+
+## Usage
+
+Run the scraper:
+
+```sh
+npm start
+```
+
+Or directly:
+
+```sh
+node nextDoorScraper.js
+```
+
+## Output
+
+-   Scraped posts are saved to the file specified by `TXT_FILE_PATH` in your `.env`.
+-   If enabled, an email with the results is sent to your address.
 
 ## Notes
 
--   This script is for educational purposes. Scraping websites may violate their terms of service—use responsibly.
--   For automated scraping, you can adapt the logic in nextDoorScraper.js to a Playwright script and run it headlessly.
+-   This script is for educational purposes. Scraping websites may violate their terms of service.
+-   Your credentials are kept safe in the `.env` file (which is gitignored).
+
+##
