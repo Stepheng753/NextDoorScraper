@@ -6,7 +6,17 @@ export function getTimestamp() {
 }
 
 export function getKeywords(text) {
-	const keywords = keywordsJson.keywords;
-	const textSplit = text.toLowerCase().split(' ');
-	return keywords.filter((keyword) => textSplit.includes(keyword.toLowerCase()));
+	const { keywords = [] } = keywordsJson;
+	const foundKeywords = new Set();
+	const lowerText = text.toLowerCase();
+
+	for (const keyword of keywords) {
+		// `\b` is a word boundary, ensuring we match whole words/phrases only.
+		const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+		if (regex.test(lowerText)) {
+			foundKeywords.add(keyword);
+		}
+	}
+
+	return Array.from(foundKeywords);
 }
