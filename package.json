@@ -4,7 +4,7 @@
 	"type": "module",
 	"main": "index.js",
 	"scripts": {
-		"start": "node nextDoorScraper.js"
+		"start": "node ./src/nextDoorScraper.js"
 	},
 	"repository": {
 		"type": "git",

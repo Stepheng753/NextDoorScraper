@@ -1,11 +1,11 @@
 import { chromium } from 'playwright';
 import { writeFile, readFile } from 'fs/promises';
 import nodemailer from 'nodemailer';
-import { format } from 'date-fns';
 import dotenv from 'dotenv';
 dotenv.config();
 import { nextDoorConfig } from './nextDoorConfig.js';
 const { url, selectors, lineBreak } = nextDoorConfig;
+import { getTimestamp, getKeywords } from './helpers.js';
 
 async function loginToNextDoor(page) {
 	await page.goto(`${url}/login/`);
@@ -16,16 +16,10 @@ async function loginToNextDoor(page) {
 	await page.click('button[type="submit"]');
 }
 
-function getTimestamp() {
-	return format(new Date(), 'MM/dd/yyyy - hh:mm:ss a');
-}
-
 async function extractPostData(page) {
 	const postElements = await page.$$(selectors.post);
-
-	let output = `Scrape Time: ${getTimestamp()}\n`;
-	output += `Found ${postElements.length} posts.\n`;
-	output += lineBreak;
+	let numFiltered = 0;
+	let filteredPosts = '';
 
 	for (const post of postElements) {
 		const name = await post.$eval(selectors.name, (el) => el.textContent).catch(() => '');
@@ -33,19 +27,30 @@ async function extractPostData(page) {
 		const location = await post.$eval(selectors.location, (el) => el.textContent).catch(() => '');
 		const time = await post.$eval(selectors.time, (el) => el.textContent).catch(() => '');
 		const href = await post.$eval(selectors.name, (el) => el.getAttribute('href')).catch(() => '');
+		const keywords = getKeywords(text);
 
-		let returnString = `${name} : ${text}\n`;
-		returnString += `${location} : ${time}\n`;
-		returnString += `${url}${href}\n`;
-		returnString += lineBreak;
-		output += returnString;
+		if (keywords.length > 0) {
+			filteredPosts += `${name} : ${location} : ${time}\n`;
+			filteredPosts += `${url}${href}\n`;
+			filteredPosts += `[${keywords.join(', ')}]\n\n`;
+			filteredPosts += `${text}\n`;
+			filteredPosts += lineBreak;
+			numFiltered++;
+		}
 	}
+
+	let output = `Scrape Time: ${getTimestamp()}\n`;
+	output += `Found ${numFiltered} posts.\n`;
+	output += lineBreak;
+	output += filteredPosts;
 
 	await writeFile(process.env.TXT_FILE_PATH, output, 'utf-8');
 	console.log(`Posts written to ${process.env.TXT_FILE_PATH}`);
+
+	return output;
 }
 
-async function scrollToLoadPosts(page, durationMs = 30000) {
+async function scrollToLoadPosts(page, durationSec = 30) {
 	const filterDiv = await page.waitForSelector(`div.${selectors.filter}`, { timeout: 10000 });
 	const filterButton = await filterDiv.evaluateHandle((div) => div.closest('button'));
 	await filterButton.click();
@@ -56,7 +61,7 @@ async function scrollToLoadPosts(page, durationMs = 30000) {
 	await page.waitForSelector(selectors.post, { timeout: 15000 });
 
 	const start = Date.now();
-	while (Date.now() - start < durationMs) {
+	while (Date.now() - start < durationSec * 1000) {
 		await page.evaluate(() => {
 			window.scrollBy(0, 20 * window.innerHeight);
 		});
@@ -64,12 +69,12 @@ async function scrollToLoadPosts(page, durationMs = 30000) {
 	}
 }
 
-async function sendEmailWithAttachment() {
+async function sendNextDoorUpdateEmail(text) {
 	const transporter = nodemailer.createTransport({
 		service: 'gmail',
 		auth: {
 			user: process.env.EMAIL_USER,
-			pass: process.env.EMAIL_PASS, // Use an app password, not your main password
+			pass: process.env.EMAIL_PASS,
 		},
 	});
 
@@ -77,13 +82,7 @@ async function sendEmailWithAttachment() {
 		from: process.env.EMAIL_USER,
 		to: process.env.EMAIL_USER,
 		subject: 'Nextdoor Posts',
-		text: 'Attached are the latest Nextdoor posts.',
-		attachments: [
-			{
-				filename: `nextdoor_posts_${getTimestamp()}.txt`,
-				content: await readFile(process.env.TXT_FILE_PATH, 'utf-8'),
-			},
-		],
+		text: text,
 	};
 
 	await transporter.sendMail(mailOptions);
@@ -92,15 +91,16 @@ async function sendEmailWithAttachment() {
 
 async function main() {
 	const browser = await chromium.launch({ headless: false });
+
 	const page = await browser.newPage();
 
 	await loginToNextDoor(page);
 
-	await scrollToLoadPosts(page, 30000);
+	await scrollToLoadPosts(page, 30);
 
-	await extractPostData(page);
+	const postsText = await extractPostData(page);
 
-	// await sendEmailWithAttachment();
+	await sendNextDoorUpdateEmail(postsText);
 
 	await browser.close();
 }
