@@ -23,14 +23,14 @@ async function loginToNextDoor(page) {
 }
 
 async function scrollToLoadPosts(page, durationSec = 30) {
-	const filterDiv = await page.waitForSelector(`div.${selectors.filter}`, { timeout: 10000 });
+	const filterDiv = await page.waitForSelector(`div.${selectors.filter}`, { timeout: 30000 });
 	const filterButton = await filterDiv.evaluateHandle((div) => div.closest('button'));
 	await filterButton.click();
 
-	await page.waitForSelector('text=Recent', { timeout: 5000 });
+	await page.waitForSelector('text=Recent', { timeout: 30000 });
 	await page.click('text=Recent');
 
-	await page.waitForSelector(selectors.post, { timeout: 15000 });
+	await page.waitForSelector(selectors.post, { timeout: 30000 });
 
 	const start = Date.now();
 	while (Date.now() - start < durationSec * 1000) {
