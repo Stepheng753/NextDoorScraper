@@ -1,11 +1,17 @@
 import { chromium } from 'playwright';
-import { writeFile, readFile } from 'fs/promises';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
 import { nextDoorConfig } from './nextDoorConfig.js';
-const { url, selectors, lineBreak } = nextDoorConfig;
-import { getTimestamp, getKeywords } from './helpers.js';
+const { url, selectors } = nextDoorConfig;
+import {
+	getKeywords,
+	convertArrayToJSON,
+	convertJSONToTxt,
+	writeToFile,
+	readFromFile,
+	filterDiffJSON,
+} from './helpers.js';
 
 async function loginToNextDoor(page) {
 	await page.goto(`${url}/login/`);
@@ -19,35 +25,42 @@ async function loginToNextDoor(page) {
 async function extractPostData(page) {
 	const postElements = await page.$$(selectors.post);
 	let numFiltered = 0;
-	let filteredPosts = '';
+	let filteredPosts = [];
 
 	for (const post of postElements) {
 		const name = await post.$eval(selectors.name, (el) => el.textContent).catch(() => '');
 		const text = await post.$eval(selectors.text, (el) => el.textContent).catch(() => '');
-		const location = await post.$eval(selectors.location, (el) => el.textContent).catch(() => '');
 		const time = await post.$eval(selectors.time, (el) => el.textContent).catch(() => '');
 		const href = await post.$eval(selectors.name, (el) => el.getAttribute('href')).catch(() => '');
 		const keywords = getKeywords(text);
 
 		if (keywords.length > 0) {
-			filteredPosts += `${name} : ${location} : ${time}\n`;
-			filteredPosts += `${url}${href}\n`;
-			filteredPosts += `[${keywords.join(', ')}]\n\n`;
-			filteredPosts += `${text}\n`;
-			filteredPosts += lineBreak;
+			filteredPosts.push({
+				name: name.trim(),
+				text: text.trim(),
+				time: time.trim(),
+				href: url.trim() + href.trim(),
+				keywords: keywords,
+			});
 			numFiltered++;
 		}
 	}
 
-	let output = `Scrape Time: ${getTimestamp()}\n`;
-	output += `Found ${numFiltered} posts.\n`;
-	output += lineBreak;
-	output += filteredPosts;
+	const oldJSON = (await readFromFile(process.env.JSON_FILE_PATH)) || [];
 
-	await writeFile(process.env.TXT_FILE_PATH, output, 'utf-8');
-	console.log(`Posts written to ${process.env.TXT_FILE_PATH}`);
+	const postsJSON = convertArrayToJSON(filteredPosts);
+	const postsTXT = convertJSONToTxt(postsJSON);
+	writeToFile(postsJSON, process.env.JSON_FILE_PATH);
+	writeToFile(postsTXT, process.env.TXT_FILE_PATH);
 
-	return output;
+	if (oldJSON.length > 0) {
+		const diffPostsJSON = filterDiffJSON(postsJSON, oldJSON);
+		const diffPostsTXT = convertJSONToTxt(diffPostsJSON);
+		writeToFile(diffPostsJSON, process.env.JSON_DIFF_FILE_PATH);
+		writeToFile(diffPostsTXT, process.env.TXT_DIFF_FILE_PATH);
+		return convertJSONToTxt(diffPostsJSON);
+	}
+	return postsTXT;
 }
 
 async function scrollToLoadPosts(page, durationSec = 30) {
@@ -98,9 +111,9 @@ async function main() {
 
 	await scrollToLoadPosts(page, 30);
 
-	const postsText = await extractPostData(page);
+	const emailTXT = await extractPostData(page);
 
-	await sendNextDoorUpdateEmail(postsText);
+	await sendNextDoorUpdateEmail(emailTXT);
 
 	await browser.close();
 }

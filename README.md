@@ -6,7 +6,7 @@ A Node.js script using Playwright to log in to Nextdoor, scroll and scrape posts
 
 -   Automated login to Nextdoor
 -   Scrolls to load more posts
--   Scrapes post data (name, text, location, time, link)
+-   Scrapes post data (name, text, time, link)
 -   Saves results to a timestamped `.txt` file
 -   Optionally emails the results as an attachment
 
