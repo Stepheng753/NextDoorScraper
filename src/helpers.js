@@ -1,8 +1,7 @@
 import { format } from 'date-fns';
 import { writeFile, readFile } from 'fs/promises';
 import keywordsJson from './keywords.json' with { type: 'json' };
-import { nextDoorConfig } from './nextDoorConfig.js';
-const { lineBreak } = nextDoorConfig;
+import { lineBreak } from './config.js';
 
 export function getTimestamp() {
 	return format(new Date(), 'MM/dd/yyyy - hh:mm:ss a');
@@ -44,9 +43,10 @@ export function convertJSONToTxt(json) {
 	return output;
 }
 
-export async function writeToFile(data, filePath) {
+export async function writeToFile(data, filePath, append = false) {
 	try {
-		await writeFile(filePath, data, 'utf-8');
+		const options = { encoding: 'utf-8', ...(append && { flag: 'a' }) };
+		await writeFile(filePath, data, options);
 		return console.log(`Posts written to ${filePath}`);
 	} catch (error) {
 		return console.error(`Error writing to file ${filePath}:`, error);

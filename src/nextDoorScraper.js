@@ -2,8 +2,7 @@ import { chromium } from 'playwright';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
-import { nextDoorConfig } from './nextDoorConfig.js';
-const { url, selectors } = nextDoorConfig;
+import { url, selectors } from './config.js';
 import {
 	getKeywords,
 	convertArrayToJSON,
@@ -11,6 +10,7 @@ import {
 	writeToFile,
 	readFromFile,
 	filterDiffJSON,
+	getTimestamp,
 } from './helpers.js';
 
 async function loginToNextDoor(page) {
@@ -20,47 +20,6 @@ async function loginToNextDoor(page) {
 	await page.fill('input[id="id_password"]', process.env.NEXTDOOR_PASS);
 
 	await page.click('button[type="submit"]');
-}
-
-async function extractPostData(page) {
-	const postElements = await page.$$(selectors.post);
-	let numFiltered = 0;
-	let filteredPosts = [];
-
-	for (const post of postElements) {
-		const name = await post.$eval(selectors.name, (el) => el.textContent).catch(() => '');
-		const text = await post.$eval(selectors.text, (el) => el.textContent).catch(() => '');
-		const time = await post.$eval(selectors.time, (el) => el.textContent).catch(() => '');
-		const href = await post.$eval(selectors.name, (el) => el.getAttribute('href')).catch(() => '');
-		const keywords = getKeywords(text);
-
-		if (keywords.length > 0) {
-			filteredPosts.push({
-				name: name.trim(),
-				text: text.trim(),
-				time: time.trim(),
-				href: url.trim() + href.trim(),
-				keywords: keywords,
-			});
-			numFiltered++;
-		}
-	}
-
-	const oldJSON = (await readFromFile(process.env.JSON_FILE_PATH)) || [];
-
-	const postsJSON = convertArrayToJSON(filteredPosts);
-	const postsTXT = convertJSONToTxt(postsJSON);
-	writeToFile(postsJSON, process.env.JSON_FILE_PATH);
-	writeToFile(postsTXT, process.env.TXT_FILE_PATH);
-
-	if (oldJSON.length > 0) {
-		const diffPostsJSON = filterDiffJSON(postsJSON, oldJSON);
-		const diffPostsTXT = convertJSONToTxt(diffPostsJSON);
-		writeToFile(diffPostsJSON, process.env.JSON_DIFF_FILE_PATH);
-		writeToFile(diffPostsTXT, process.env.TXT_DIFF_FILE_PATH);
-		return convertJSONToTxt(diffPostsJSON);
-	}
-	return postsTXT;
 }
 
 async function scrollToLoadPosts(page, durationSec = 30) {
@@ -80,6 +39,54 @@ async function scrollToLoadPosts(page, durationSec = 30) {
 		});
 		await page.waitForTimeout(1000);
 	}
+}
+
+async function extractPostData(page) {
+	const postElements = await page.$$(selectors.post);
+	let filteredPosts = [];
+
+	for (const post of postElements) {
+		const name = await post.$eval(selectors.name, (el) => el.textContent).catch(() => '');
+		const text = await post.$eval(selectors.text, (el) => el.textContent).catch(() => '');
+		const time = await post.$eval(selectors.time, (el) => el.textContent).catch(() => '');
+		const href = await post.$eval(selectors.name, (el) => el.getAttribute('href')).catch(() => '');
+		const keywords = getKeywords(text);
+
+		if (keywords.length > 0) {
+			filteredPosts.push({
+				name: name.trim(),
+				text: text.trim(),
+				time: time.trim(),
+				href: url.trim() + href.trim(),
+				keywords: keywords,
+			});
+		}
+	}
+
+	return filteredPosts;
+}
+
+async function writeFiles(filteredPosts) {
+	const oldJSON = (await readFromFile(process.env.JSON_FILE_PATH)) || [];
+	const oldTXT = (await readFromFile(process.env.TXT_FILE_PATH)) || [];
+
+	const postsJSON = convertArrayToJSON(filteredPosts);
+	const postsTXT = convertJSONToTxt(postsJSON);
+	writeToFile(postsJSON, process.env.JSON_FILE_PATH);
+	writeToFile(postsTXT, process.env.TXT_FILE_PATH);
+
+	if (oldJSON.length > 0) {
+		const diffPostsJSON = filterDiffJSON(postsJSON, oldJSON);
+		const diffPostsTXT = convertJSONToTxt(diffPostsJSON);
+		writeToFile(diffPostsJSON, process.env.DIFF_JSON_FILE_PATH);
+		writeToFile(diffPostsTXT, process.env.DIFF_TXT_FILE_PATH);
+
+		writeToFile(oldJSON, process.env.PREV_JSON_FILE_PATH);
+		writeToFile(oldTXT, process.env.PREV_TXT_FILE_PATH);
+
+		return convertJSONToTxt(diffPostsJSON);
+	}
+	return postsTXT;
 }
 
 async function sendNextDoorUpdateEmail(text) {
@@ -102,6 +109,15 @@ async function sendNextDoorUpdateEmail(text) {
 	console.log('Email sent!');
 }
 
+async function logRunTime() {
+	const logTime = getTimestamp();
+	const jsonFile = await readFromFile(process.env.JSON_FILE_PATH);
+	const numPosts = jsonFile ? JSON.parse(jsonFile).length : 0;
+
+	const logMessage = `NextDoor Scraper : ${logTime} : ${numPosts} Posts\n`;
+	await writeToFile(logMessage, process.env.LOG_FILE_PATH, true);
+}
+
 async function main() {
 	const browser = await chromium.launch({ headless: true });
 
@@ -109,11 +125,15 @@ async function main() {
 
 	await loginToNextDoor(page);
 
-	await scrollToLoadPosts(page, 30);
+	await scrollToLoadPosts(page, 60);
 
-	const emailTXT = await extractPostData(page);
+	const filteredPosts = await extractPostData(page);
+
+	const emailTXT = await writeFiles(filteredPosts);
 
 	await sendNextDoorUpdateEmail(emailTXT);
+
+	await logRunTime();
 
 	await browser.close();
 }
