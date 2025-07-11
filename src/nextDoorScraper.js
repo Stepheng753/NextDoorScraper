@@ -84,12 +84,17 @@ async function writeFiles(filteredPosts) {
 		writeToFile(oldJSON, process.env.PREV_JSON_FILE_PATH);
 		writeToFile(oldTXT, process.env.PREV_TXT_FILE_PATH);
 
-		return convertJSONToTxt(diffPostsJSON);
+		return convertJSONToTxt(diffPostsJSON) ? diffPostsJSON.length > 0 : '';
 	}
 	return postsTXT;
 }
 
 async function sendNextDoorUpdateEmail(text) {
+	if (!text || text.length === 0) {
+		console.log('No new posts to send via email.');
+		return;
+	}
+
 	const transporter = nodemailer.createTransport({
 		service: 'gmail',
 		auth: {
@@ -125,7 +130,7 @@ async function main() {
 
 	await loginToNextDoor(page);
 
-	await scrollToLoadPosts(page, 60);
+	await scrollToLoadPosts(page, 20);
 
 	const filteredPosts = await extractPostData(page);
 
