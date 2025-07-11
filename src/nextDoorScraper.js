@@ -84,7 +84,7 @@ async function writeFiles(filteredPosts) {
 		writeToFile(oldJSON, process.env.PREV_JSON_FILE_PATH);
 		writeToFile(oldTXT, process.env.PREV_TXT_FILE_PATH);
 
-		return convertJSONToTxt(diffPostsJSON) ? diffPostsJSON.length > 0 : '';
+		return JSON.parse(diffPostsJSON).length > 0 ? convertJSONToTxt(diffPostsJSON) : '';
 	}
 	return postsTXT;
 }
