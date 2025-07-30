@@ -3,6 +3,18 @@ import { writeFile, readFile } from 'fs/promises';
 import keywordsJson from './keywords.json' with { type: 'json' };
 import { lineBreak } from './config.js';
 
+export async function clickButton(page, role, name, timeout = 30000) {
+	const button = await page.getByRole(role, { name: name });
+	await button.waitFor({ state: 'visible', timeout: timeout });
+	await button.click();
+}
+
+export async function fillTextBox(page, role, name, fillText, timeout = 30000) {
+	const textBox = await page.getByRole(role, { name: name });
+	await textBox.waitFor({ state: 'visible', timeout: timeout });
+	await textBox.fill(fillText);
+}
+
 export function getTimestamp() {
 	return format(new Date(), 'MM/dd/yyyy - hh:mm:ss a');
 }

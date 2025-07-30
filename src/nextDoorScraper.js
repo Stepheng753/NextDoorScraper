@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { url, selectors } from './config.js';
 import {
+	clickButton,
+	fillTextBox,
 	getKeywords,
 	convertArrayToJSON,
 	convertJSONToTxt,
@@ -16,19 +18,14 @@ import {
 async function loginToNextDoor(page) {
 	await page.goto(`${url}/login/`);
 
-	await page.fill('input[id="id_email"]', process.env.EMAIL_USER);
-	await page.fill('input[id="id_password"]', process.env.NEXTDOOR_PASS);
-
-	await page.click('button[type="submit"]');
+	await fillTextBox(page, 'textBox', 'Email', process.env.EMAIL_USER);
+	await fillTextBox(page, 'textBox', 'Password', process.env.NEXTDOOR_PASS);
+	await clickButton(page, 'button', 'Log in');
 }
 
 async function scrollToLoadPosts(page, durationSec = 30) {
-	const filterDiv = await page.waitForSelector(`div.${selectors.filter}`, { timeout: 30000 });
-	const filterButton = await filterDiv.evaluateHandle((div) => div.closest('button'));
-	await filterButton.click();
-
-	await page.waitForSelector('text=Recent', { timeout: 30000 });
-	await page.click('text=Recent');
+	await clickButton(page, 'button', 'Filter');
+	await clickButton(page, 'menuitem', 'Recent');
 
 	await page.waitForSelector(selectors.post, { timeout: 30000 });
 
