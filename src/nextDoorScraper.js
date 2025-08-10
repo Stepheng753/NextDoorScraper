@@ -123,7 +123,7 @@ async function logRunTime() {
 async function main() {
 	let browser;
 	try {
-		browser = await chromium.launch({ headless: false });
+		browser = await chromium.launch({ headless: true });
 		const page = await browser.newPage();
 
 		await loginToNextDoor(page);
