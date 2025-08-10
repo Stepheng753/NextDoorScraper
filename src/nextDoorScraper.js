@@ -86,7 +86,7 @@ async function writeFiles(filteredPosts) {
 	return postsTXT;
 }
 
-async function sendNextDoorUpdateEmail(text) {
+async function sendNextDoorUpdateEmail(text, subject = 'Nextdoor Posts') {
 	if (!text || text.length === 0) {
 		console.log('No new posts to send via email.');
 		return;
@@ -103,7 +103,7 @@ async function sendNextDoorUpdateEmail(text) {
 	const mailOptions = {
 		from: process.env.EMAIL_USER,
 		to: process.env.EMAIL_USER,
-		subject: 'Nextdoor Posts',
+		subject: subject,
 		text: text,
 	};
 
@@ -121,23 +121,31 @@ async function logRunTime() {
 }
 
 async function main() {
-	const browser = await chromium.launch({ headless: true });
+	let browser;
+	try {
+		browser = await chromium.launch({ headless: false });
+		const page = await browser.newPage();
 
-	const page = await browser.newPage();
+		await loginToNextDoor(page);
 
-	await loginToNextDoor(page);
+		await scrollToLoadPosts(page, 20);
 
-	await scrollToLoadPosts(page, 20);
+		const filteredPosts = await extractPostData(page);
 
-	const filteredPosts = await extractPostData(page);
+		const emailTXT = await writeFiles(filteredPosts);
 
-	const emailTXT = await writeFiles(filteredPosts);
+		await sendNextDoorUpdateEmail(emailTXT, 'Nextdoor Posts');
 
-	await sendNextDoorUpdateEmail(emailTXT);
+		await logRunTime();
 
-	await logRunTime();
+		await browser.close();
+	} catch (error) {
+		await sendNextDoorUpdateEmail(error, 'Nextdoor Scraper Error');
 
-	await browser.close();
+		if (browser) {
+			await browser.close();
+		}
+	}
 }
 
 main();
